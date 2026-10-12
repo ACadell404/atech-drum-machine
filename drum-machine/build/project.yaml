@@ -1,0 +1,87 @@
+name: drum-machine
+board: 14port
+modules_path:
+- C:\Users\acade\OneDrive\Documents\DTU-sem7\Atech\drum macschin\drum-machine\modules
+- C:\Users\acade\OneDrive\Documents\DTU-sem7\Atech\drum macschin\led-strip\modules
+modules:
+- id: rotary_encoder
+  instance: step_knob
+  ports:
+  - port_1
+  - port_2
+- id: rotary_encoder
+  instance: drum_knob
+  ports:
+  - port_3
+  - port_4
+- id: drum_synth
+  instance: drums
+  ports:
+  - port_5
+  - port_6
+- id: neopixel
+  instance: leds
+  port: port_7
+- id: st7735_tft
+  instance: screen
+  ports:
+  - port_9
+  - port_10
+- id: button
+  instance: btn_play
+  port: port_11
+- id: button
+  instance: btn_shift
+  port: port_13
+- id: led_strip
+  instance: strip
+  port: port_14
+code:
+  setup: 'step_knob.setAcceleration(false);
+
+    drum_knob.setAcceleration(false);
+
+    step_knob.setRingBrightness(40);
+
+    drum_knob.setRingBrightness(40);
+
+    leds.setBrightness(40);
+
+    '
+  loop: "// Controls\n//   step knob   turn: move cursor across the 16 steps   press:\
+    \ toggle step\n//   drum knob   turn: choose drum row                    press:\
+    \ hear the drum\n//   SHIFT held  step knob turns tempo, drum knob sets the selected\
+    \ drum's velocity (5% steps),\n//               step knob press clears the row,\
+    \ drum knob press loads the demo beat\n//   PLAY        start / stop\nstatic DrumUI<ST7735_TFT>\
+    \ ui(screen, drums);\nstatic PressEdge playPress, stepPress, drumPress;\nstatic\
+    \ int32_t lastStepPos = 0, lastDrumPos = 0;\nstatic int cursorStep = 0, cursorTrack\
+    \ = -1;\nstatic bool started = false;\nif (!started) {\n  started = true;\n  lastStepPos\
+    \ = step_knob.getPosition();\n  lastDrumPos = drum_knob.getPosition();\n  ui.begin();\n\
+    }\n\nbool shift = btn_shift.isPressed();\nui.setShift(shift);\n\nint32_t pos =\
+    \ step_knob.getPosition();\nint32_t delta = pos - lastStepPos;\nlastStepPos =\
+    \ pos;\nif (delta) {\n  if (shift) drums.setTempo(drums.getTempo() + delta);\n\
+    \  else cursorStep = ((cursorStep + delta) % 16 + 16) % 16;\n}\n\npos = drum_knob.getPosition();\n\
+    delta = pos - lastDrumPos;\nlastDrumPos = pos;\nint track = cursorTrack < 0 ?\
+    \ 0 : cursorTrack;\nif (delta) {\n  if (shift) {\n    drums.setLevel(track, drums.getLevel(track)\
+    \ + delta * 5);\n    if (!drums.isPlaying()) drums.trigger(track);\n  } else {\n\
+    \    track = ((track + delta) % 6 + 6) % 6;\n  }\n}\nif (track != cursorTrack)\
+    \ {\n  cursorTrack = track;\n  uint8_t r, g, b;\n  DrumSynth::trackColorRGB(track,\
+    \ r, g, b);\n  step_knob.setRingColor(r, g, b);\n  drum_knob.setRingColor(r, g,\
+    \ b);\n}\nui.setCursor(cursorTrack, cursorStep);\n\nif (stepPress.pressed(step_knob.isPressed()))\
+    \ {\n  if (shift) drums.clearTrack(cursorTrack);\n  else if (ui.toggleAtCursor()\
+    \ && !drums.isPlaying()) drums.trigger(cursorTrack);\n}\nif (drumPress.pressed(drum_knob.isPressed()))\
+    \ {\n  if (shift) drums.loadDemoBeat();\n  else drums.trigger(cursorTrack);\n\
+    }\nif (playPress.pressed(btn_play.isPressed())) {\n  drums.togglePlay();\n}\n\n\
+    // Screen + light grid follow the playhead\nif (ui.refresh()) {\n  leds.clear();\n\
+    \  int step = drums.currentStep();\n  if (step >= 0) {\n    uint8_t hits = drums.lastHits();\n\
+    \    for (int t = 0; t < 6; t++) {\n      if (hits & (1 << t)) {\n        uint8_t\
+    \ r, g, b;\n        DrumSynth::trackColorRGB(t, r, g, b);\n        leds.setPixel(t,\
+    \ r, g, b);\n      }\n    }\n    if (step == 0) leds.setRow(2, 255, 255, 255);\
+    \           // bar downbeat\n    else if (step % 4 == 0) leds.setPixel(7, 120,\
+    \ 120, 120); // each beat\n\n    // Light strip hits with the drums (toggle with\
+    \ the strip_beat command)\n    if (strip.beatSync() && hits) {\n      if (hits\
+    \ & (1 << DrumSynth::KICK))       strip.flash(255, 60, 20, 220);\n      else if\
+    \ (hits & ((1 << DrumSynth::SNARE) | (1 << DrumSynth::CLAP)))\n              \
+    \                                 strip.flash(255, 255, 255, 140);\n      else\
+    \ if (hits & (1 << DrumSynth::TOM))   strip.flash(80, 255, 80, 180);\n    }\n\
+    \  }\n  leds.show();\n}\n"

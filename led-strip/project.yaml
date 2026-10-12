@@ -1,0 +1,6 @@
+name: led-strip
+board: 14port
+modules_path: modules
+modules:
+  # DATA wire of the Cync strip -> 330 ohm -> port 14 Line A (GPIO 36). Share GND.
+  - {id: led_strip, port: 14, instance: strip}

@@ -1,0 +1,93 @@
+id: led_strip
+name: "Addressable LED Strip (external power)"
+category: led
+interface: gpio
+size: 1
+description: |
+  Drives the DATA line of an external addressable strip (WS2811 / WS2812
+  family), e.g. a salvaged 24 V strip powered by its own supply. Only Line A
+  (through a ~330 ohm resistor) and GND connect to the board — never the
+  strip's +V. Pixel count, colour order and data rate are set at runtime and
+  saved to flash, with test effects to discover them.
+
+driver:
+  header: led_strip.h
+  source: led_strip.cpp
+  class_name: LedStrip
+
+templates:
+  globals: |
+    LedStrip {{ instance }}({{ pin_a }}, {{ pin_b }});
+  setup: |
+    {{ instance }}.begin();
+  loop: |
+    {{ instance }}.pollSerial("{{ instance }}");
+    {{ instance }}.update();
+
+events:
+  - key: state
+    type: state
+    value_type: json
+    description: '{"effect","color","brightness","speed","count","order","khz"} after every command.'
+  - key: test
+    type: state
+    value_type: string
+    description: 'During test_colors: the colour being SENT right now ("red", "green", "blue").'
+
+actions:
+  - key: "{{ instance }}_effect"
+    value_type: string
+    description: "off | solid | rainbow | chase | breathe | sparkle | test_colors | test_count"
+  - key: "{{ instance }}_color"
+    value_type: string
+    description: '"#ff8800", "255,136,0" or a name: red green blue white warm orange yellow cyan purple pink'
+  - key: "{{ instance }}_brightness"
+    value_type: int
+    description: "0-255 (default 80)."
+  - key: "{{ instance }}_speed"
+    value_type: float
+    description: "Effect speed multiplier 0.1-5."
+  - key: "{{ instance }}_flash"
+    value_type: string
+    description: 'One-shot flash over the effect: "white" or "red:400" (colour:fade ms).'
+  - key: "{{ instance }}_pixel"
+    value_type: string
+    description: 'Set one pixel: "12:blue" (switches to custom mode).'
+  - key: "{{ instance }}_fill"
+    value_type: string
+    description: 'Set a range: "0:29:#ff0000" (switches to custom mode).'
+  - key: "{{ instance }}_count"
+    value_type: int
+    description: "Number of addressable pixels/segments (1-600). Saved."
+  - key: "{{ instance }}_order"
+    value_type: string
+    description: "Colour order on the wire: RGB RBG GRB GBR BRG BGR. Saved."
+  - key: "{{ instance }}_khz"
+    value_type: int
+    description: "Data rate 800 or 400. Saved."
+  - key: "{{ instance }}_line"
+    value_type: string
+    description: 'Which port line carries data: "A" (default) or "B". Saved.'
+  - key: "{{ instance }}_beat"
+    value_type: string
+    description: '"1"/"0": flash on drum hits when used in the drum machine firmware.'
+  - key: "{{ instance }}_test"
+    value_type: string
+    description: '"colors" (cycle R/G/B) or "count" (first red, every 10th white, last green).'
+  - key: "{{ instance }}_dump"
+    value_type: "null"
+    description: "Reply with a state event."
+
+lib_deps:
+  - "adafruit/Adafruit NeoPixel"
+
+usage: |
+  // Public API of LedStrip — the instance is `{{ instance }}`.
+  {{ instance }}.setEffect(LedStrip::RAINBOW);        // OFF SOLID RAINBOW CHASE BREATHE SPARKLE
+  {{ instance }}.setColor(255, 80, 0);
+  {{ instance }}.setBrightness(120);                  // 0..255
+  {{ instance }}.setSpeed(1.5f);
+  {{ instance }}.flash(255, 255, 255, 200);           // flash white, fade over 200 ms
+  {{ instance }}.setPixel(3, 0, 0, 255);              // custom mode
+  {{ instance }}.fillRange(0, 9, 255, 0, 0);
+  // update() already runs every loop via the module template.

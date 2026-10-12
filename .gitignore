@@ -1,0 +1,7 @@
+# PlatformIO build output
+.pio/
+# local build/upload logs
+*.log
+# local editor/tool config
+.claude/
+__pycache__/

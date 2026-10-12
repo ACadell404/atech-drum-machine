@@ -1,0 +1,104 @@
+id: drum_synth
+name: "Drum Synth (I2S Speaker)"
+category: audio
+interface: gpio
+size: 2
+description: |
+  6-voice percussion synthesizer with a built-in 16-step sequencer, running on
+  the MAX98357A I2S speaker module (same hardware and wiring as `speaker`).
+  Voices: kick, snare, clap, closed hat, open hat, tom. All synthesized in
+  real time at 32 kHz on Core 0 with a sample-accurate sequencer clock.
+
+driver:
+  header: drum_synth.h
+  source: drum_synth.cpp
+  class_name: DrumSynth
+
+templates:
+  # Same pin mapping as the stock speaker: constructor is (bclk, lrclk, dout).
+  globals: |
+    DrumSynth {{ instance }}({{ pin_b }}, {{ pin_a }}, {{ pin_b2 }});
+  setup: |
+    {{ instance }}.begin();
+  loop: |
+    {{ instance }}.pollSerial("{{ instance }}");
+
+events:
+  - key: playing
+    type: state
+    value_type: int
+    description: "1 when the sequencer starts, 0 when it stops."
+  - key: tempo
+    type: state
+    value_type: int
+    description: "New tempo in BPM, whenever it changes."
+  - key: step
+    type: state
+    value_type: int
+    description: "Playhead step 0-15 on every move, -1 when stopped."
+  - key: state
+    type: state
+    value_type: json
+    description: >
+      Full snapshot {"bpm","playing","step","volume","tracks":[6 x 16-char rows],"tune":[6 ints],"level":[6 ints 0-100]}.
+      Sent on the dump action and whenever the pattern, tuning or volume changes.
+
+actions:
+  - key: "{{ instance }}_play"
+    value_type: "null"
+    description: "Start the sequencer from step 1."
+  - key: "{{ instance }}_stop"
+    value_type: "null"
+    description: "Stop the sequencer."
+  - key: "{{ instance }}_tempo"
+    value_type: int
+    description: "Tempo in BPM (50-220)."
+  - key: "{{ instance }}_trigger"
+    value_type: string
+    description: 'Play one drum now: "kick", "snare", "clap", "chh", "ohh", "tom" or 0-5.'
+  - key: "{{ instance }}_pattern"
+    value_type: string
+    description: 'Set one track: "kick:x...x...x...x..." (x = hit, . = rest, 16 steps).'
+  - key: "{{ instance }}_step"
+    value_type: string
+    description: 'Set one cell: "track:step:on", e.g. "kick:4:1" (steps 0-15).'
+  - key: "{{ instance }}_setall"
+    value_type: string
+    description: "Replace the whole pattern: six 16-char rows joined by '|' (kick first)."
+  - key: "{{ instance }}_level"
+    value_type: string
+    description: 'Per-drum velocity in percent: "snare:60" (0-100, 0 mutes).'
+  - key: "{{ instance }}_tune"
+    value_type: string
+    description: 'Retune one drum in semitones: "snare:+3" (-12..+12).'
+  - key: "{{ instance }}_clear"
+    value_type: string
+    description: 'Clear one track ("hat") or everything ("all").'
+  - key: "{{ instance }}_volume"
+    value_type: float
+    description: "Master volume 0.0-1.0 (default 0.5)."
+  - key: "{{ instance }}_demo"
+    value_type: "null"
+    description: "Load the built-in demo beat."
+  - key: "{{ instance }}_dump"
+    value_type: "null"
+    description: "Reply with a state event describing the current beat."
+
+lib_deps: []
+
+usage: |
+  // Public API of DrumSynth — the instance is `{{ instance }}`.
+  // Tracks: DrumSynth::KICK, SNARE, CLAP, CLOSED_HAT, OPEN_HAT, TOM (0-5).
+  {{ instance }}.trigger(DrumSynth::SNARE);          // play a drum right now
+  {{ instance }}.play(); {{ instance }}.stop(); {{ instance }}.togglePlay();
+  {{ instance }}.setTempo(128);                       // 50..220 BPM
+  {{ instance }}.toggleStep(DrumSynth::KICK, 4);      // steps 0..15
+  {{ instance }}.setPatternString(DrumSynth::CLOSED_HAT, "x.x.x.x.x.x.x.x.");
+  {{ instance }}.setLevel(DrumSynth::CLOSED_HAT, 60); // velocity %, 0..100 (0 mutes)
+  {{ instance }}.setTune(DrumSynth::TOM, -5);         // semitones, -12..+12
+  int step = {{ instance }}.currentStep();            // -1 when stopped
+  if ({{ instance }}.stepAdvanced()) { uint8_t hits = {{ instance }}.lastHits(); }
+
+  // Screen helper (header-only, works with ST7735_TFT):
+  //   static DrumUI<ST7735_TFT> ui(screen, {{ instance }});
+  //   ui.begin(); ui.setCursor(track, step); ui.toggleAtCursor(); ui.refresh();

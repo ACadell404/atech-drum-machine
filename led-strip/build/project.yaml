@@ -1,0 +1,8 @@
+name: led-strip
+board: 14port
+modules_path:
+- C:\Users\acade\OneDrive\Documents\DTU-sem7\Atech\drum macschin\led-strip\modules
+modules:
+- id: led_strip
+  instance: strip
+  port: port_14
